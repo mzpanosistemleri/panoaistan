@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Elektrik Panosu Asistanı</title>
+  <style>
+    body {
+  max-width: 700px;
+  margin: 20px auto;
+  font-family: Arial, sans-serif;
+  background-color: #121212;    /* koyu siyah arka plan */
+  color: #eee;                  /* açık gri metin */
+}
+
+input, textarea, select {
+  padding: 8px;
+  margin: 5px 0;
+  background-color: #1e1e1e;   /* koyu gri input arka plan */
+  border: 1px solid #444;      /* koyu gri kenarlık */
+  color: #eee;
+  border-radius: 4px;
+}
+
+input::placeholder, textarea::placeholder {
+  color: #888;                 /* placeholder daha soluk */
+}
+
+button {
+  cursor: pointer;
+  background-color: #333;      /* koyu gri buton */
+  color: #eee;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 4px;
+  transition: background-color 0.3s ease;
+}
+
+button:hover {
+  background-color: #555;      /* buton üzerine gelince açık gri */
+}
+
+ul {
+  list-style: none;
+  padding-left: 0;
+}
+
+li {
+  margin-bottom: 8px;
+  border-bottom: 1px solid #444; /* açık gri alt çizgi */
+  padding-bottom: 6px;
+}
+
+.malzeme-listesi {
+  margin-left: 20px;
+}
+
+.proje-container {
+  border: 1px solid #444;   /* gri kenarlık */
+  padding: 10px;
+  margin-bottom: 20px;
+  background-color: #1e1e1e;  /* proje kutusu koyu gri */
+  border-radius: 6px;
+}
+
+.malzeme-ekle-input {
+  width: 150px;
+  margin-right: 5px;
+  background-color: #1e1e1e;
+  color: #eee;
+  border: 1px solid #444;
+  border-radius: 4px;
+}
+
+.inline-btn {
+  margin-left: 8px;
+}
+
+.malzeme-duzenle-form {
+  display: none;
+  margin-top: 10px;
+  border: 1px solid #555;
+  padding: 10px;
+  background: #2a2a2a;
+  border-radius: 6px;
+}
+
+  </style>
+</head>
+<body>
+
+  <h1>Elektrik Panosu Asistanı</h1>
+
+  <h2>Yeni Proje Ekle / Düzenle</h2>
+  <input id="projeAdi" placeholder="Proje Adı" />
+  <br />
+  <textarea id="aciklama" placeholder="Proje Açıklaması"></textarea>
+  <br />
+  <button id="projeEkleBtn" onclick="yeniProjeEkle()">Proje Ekle</button>
+  <button id="projeKaydetBtn" onclick="projeKaydet()" style="display:none;">Kaydet</button>
+
+  <h2>Projeler</h2>
+  <div id="projelerListesi"></div>
+
+<script>
+  let projeler = JSON.parse(localStorage.getItem('projeler')) || [];
+
+  let duzenlenenProjeId = null;
+  let duzenlenenMalzeme = { projeId: null, malzemeIndex: null };
+
+  function yeniProjeEkle() {
+    const projeAdi = document.getElementById('projeAdi').value.trim();
+    const aciklama = document.getElementById('aciklama').value.trim();
+
+    if (!projeAdi) {
+      alert('Proje adı boş olamaz!');
+      return;
+    }
+
+    const yeniProje = {
+      id: Date.now(),
+      projeAdi,
+      aciklama,
+      malzemeler: []
+    };
+
+    projeler.push(yeniProje);
+    kaydetVeListele();
+    temizleProjeForm();
+  }
+
+  function projeDuzenle(projeId) {
+    const proje = projeler.find(p => p.id === projeId);
+    if (!proje) return;
+
+    duzenlenenProjeId = projeId;
+    document.getElementById('projeAdi').value = proje.projeAdi;
+    document.getElementById('aciklama').value = proje.aciklama;
+    document.getElementById('projeEkleBtn').style.display = 'none';
+    document.getElementById('projeKaydetBtn').style.display = 'inline-block';
+  }
+
+  function projeKaydet() {
+    if (!duzenlenenProjeId) return;
+
+    const yeniAdi = document.getElementById('projeAdi').value.trim();
+    const yeniAciklama = document.getElementById('aciklama').value.trim();
+
+    if (!yeniAdi) {
+      alert('Proje adı boş olamaz!');
+      return;
+    }
+
+    const proje = projeler.find(p => p.id === duzenlenenProjeId);
+    if (!proje) return;
+
+    proje.projeAdi = yeniAdi;
+    proje.aciklama = yeniAciklama;
+
+    duzenlenenProjeId = null;
+    temizleProjeForm();
+
+    document.getElementById('projeEkleBtn').style.display = 'inline-block';
+    document.getElementById('projeKaydetBtn').style.display = 'none';
+
+    kaydetVeListele();
+  }
+
+  function temizleProjeForm() {
+    document.getElementById('projeAdi').value = '';
+    document.getElementById('aciklama').value = '';
+  }
+
+  function malzemeEkle(projeId) {
+    if (duzenlenenMalzeme.projeId !== null) {
+      alert('Lütfen önce düzenlemeyi tamamlayın!');
+      return;
+    }
+
+    const adInput = document.getElementById(`malzemeAd-${projeId}`);
+    const adetInput = document.getElementById(`malzemeAdet-${projeId}`);
+    const aciklamaInput = document.getElementById(`malzemeAciklama-${projeId}`);
+
+    const malzemeAdi = adInput.value.trim();
+    const malzemeAdet = adetInput.value.trim();
+    const malzemeAciklama = aciklamaInput.value.trim();
+
+    if (!malzemeAdi) {
+      alert('Malzeme adı boş olamaz');
+      return;
+    }
+    if (!malzemeAdet || isNaN(malzemeAdet) || malzemeAdet <= 0) {
+      alert('Geçerli bir adet giriniz');
+      return;
+    }
+
+    const proje = projeler.find(p => p.id === projeId);
+    if (!proje) return;
+
+    proje.malzemeler.push({
+      ad: malzemeAdi,
+      adet: Number(malzemeAdet),
+      aciklama: malzemeAciklama
+    });
+    kaydetVeListele();
+
+    adInput.value = '';
+    adetInput.value = '';
+    aciklamaInput.value = '';
+  }
+
+  function malzemeDuzenle(projeId, malzemeIndex) {
+    if (duzenlenenMalzeme.projeId !== null) {
+      alert('Başka bir malzeme düzenleniyor. Önce onu kaydedin!');
+      return;
+    }
+
+    const proje = projeler.find(p => p.id === projeId);
+    if (!proje) return;
+    const malzeme = proje.malzemeler[malzemeIndex];
+    if (!malzeme) return;
+
+    duzenlenenMalzeme = { projeId, malzemeIndex };
+
+    document.getElementById(`malzemeDuzenleAd-${projeId}`).value = malzeme.ad;
+    document.getElementById(`malzemeDuzenleAdet-${projeId}`).value = malzeme.adet;
+    document.getElementById(`malzemeDuzenleAciklama-${projeId}`).value = malzeme.aciklama;
+
+    document.getElementById(`malzemeDuzenleForm-${projeId}`).style.display = 'block';
+  }
+
+  function malzemeGuncelle() {
+    if (duzenlenenMalzeme.projeId === null) return;
+
+    const { projeId, malzemeIndex } = duzenlenenMalzeme;
+
+    const adInput = document.getElementById(`malzemeDuzenleAd-${projeId}`);
+    const adetInput = document.getElementById(`malzemeDuzenleAdet-${projeId}`);
+    const aciklamaInput = document.getElementById(`malzemeDuzenleAciklama-${projeId}`);
+
+    const malzemeAdi = adInput.value.trim();
+    const malzemeAdet = adetInput.value.trim();
+    const malzemeAciklama = aciklamaInput.value.trim();
+
+    if (!malzemeAdi) {
+      alert('Malzeme adı boş olamaz');
+      return;
+    }
+    if (!malzemeAdet || isNaN(malzemeAdet) || malzemeAdet <= 0) {
+      alert('Geçerli bir adet giriniz');
+      return;
+    }
+
+    const proje = projeler.find(p => p.id === projeId);
+    if (!proje) return;
+
+    proje.malzemeler[malzemeIndex] = {
+      ad: malzemeAdi,
+      adet: Number(malzemeAdet),
+      aciklama: malzemeAciklama
+    };
+
+    duzenlenenMalzeme = { projeId: null, malzemeIndex: null };
+
+    document.getElementById(`malzemeDuzenleForm-${projeId}`).style.display = 'none';
+
+    kaydetVeListele();
+  }
+
+  function malzemeSil(projeId, malzemeIndex) {
+    const proje = projeler.find(p => p.id === projeId);
+    if (!proje) return;
+    proje.malzemeler.splice(malzemeIndex, 1);
+    kaydetVeListele();
+  }
+
+  function projeSil(projeId) {
+    if (!confirm('Projeyi silmek istediğine emin misin?')) return;
+    projeler = projeler.filter(p => p.id !== projeId);
+    kaydetVeListele();
+  }
+
+  function kaydetVeListele() {
+    localStorage.setItem('projeler', JSON.stringify(projeler));
+    listele();
+  }
+
+  function listele() {
+    const container = document.getElementById('projelerListesi');
+    container.innerHTML = '';
+
+    projeler.forEach(proje => {
+      const div = document.createElement('div');
+      div.className = 'proje-container';
+
+      div.innerHTML = `
+        <h3>
+          ${proje.projeAdi}
+          <button onclick="projeSil(${proje.id})" style="float:right;color:red;">Sil</button>
+          <button onclick="projeDuzenle(${proje.id})" style="float:right;margin-right:10px;">Düzenle</button>
+        </h3>
+        <p>${proje.aciklama}</p>
+
+        <h4>Malzemeler</h4>
+        <ul class="malzeme-listesi">
+          ${proje.malzemeler.map((malzeme, i) => `
+            <li>
+              <strong>${malzeme.ad}</strong> (Adet: ${malzeme.adet}) <br/>
+              Açıklama: ${malzeme.aciklama || '-'}<br/>
+              <button onclick="malzemeDuzenle(${proje.id}, ${i})">Düzenle</button>
+              <button onclick="malzemeSil(${proje.id}, ${i})" style="color:red;">Sil</button>
+            </li>
+          `).join('')}
+        </ul>
+
+        <div>
+          <h4>Malzeme Ekle</h4>
+          <input id="malzemeAd-${proje.id}" class="malzeme-ekle-input" placeholder="Malzeme Adı" />
+          <input id="malzemeAdet-${proje.id}" class="malzeme-ekle-input" placeholder="Adet" type="number" min="1" />
+          <input id="malzemeAciklama-${proje.id}" class="malzeme-ekle-input" placeholder="Açıklama (opsiyonel)" />
+          <button onclick="malzemeEkle(${proje.id})">Ekle</button>
+        </div>
+
+        <div id="malzemeDuzenleForm-${proje.id}" class="malzeme-duzenle-form">
+          <h4>Malzeme Düzenle</h4>
+          <input id="malzemeDuzenleAd-${proje.id}" placeholder="Malzeme Adı" />
+          <input id="malzemeDuzenleAdet-${proje.id}" placeholder="Adet" type="number" min="1" />
+          <input id="malzemeDuzenleAciklama-${proje.id}" placeholder="Açıklama" />
+          <button onclick="malzemeGuncelle()">Güncelle</button>
+          <button onclick="iptalEt()">İptal</button>
+        </div>
+      `;
+
+      container.appendChild(div);
+    });
+  }
+
+  function iptalEt() {
+    if (duzenlenenMalzeme.projeId !== null) {
+      document.getElementById(`malzemeDuzenleForm-${duzenlenenMalzeme.projeId}`).style.display = 'none';
+      duzenlenenMalzeme = { projeId: null, malzemeIndex: null };
+    }
+  }
+
+  listele();
+</script>
+
+</body>
+</html>
